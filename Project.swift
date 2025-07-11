@@ -2,6 +2,9 @@ import ProjectDescription
 
 let project = Project(
     name: "UI_Lab",
+    packages: [
+        .package(url: "https://github.com/SnapKit/SnapKit.git", from: "5.6.0")
+    ],
     targets: [
         .target(
             name: "UI_Lab",
@@ -30,7 +33,9 @@ let project = Project(
             ),
             sources: ["UI_Lab/Sources/**"],
             resources: ["UI_Lab/Resources/**"],
-            dependencies: []
+            dependencies: [
+             .package(product: "SnapKit")
+            ]
         ),
         .target(
             name: "UI_LabTests",

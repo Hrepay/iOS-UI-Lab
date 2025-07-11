@@ -20,9 +20,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         let window = UIWindow(windowScene: windowScene)
 
-        // SwiftUI 뷰 설정
-        let rootView = ContentView()
-        window.rootViewController = UIHostingController(rootView: rootView)
+        // UIKit 기반 루트 뷰 설정
+        let rootViewController = ViewController()
+        window.rootViewController = rootViewController
+
+        // SwiftUI 기반 루트 뷰 설정
+//        let rootView = ContentView()
+//        window.rootViewController = UIHostingController(rootView: rootView)
 
         self.window = window
         window.makeKeyAndVisible()
