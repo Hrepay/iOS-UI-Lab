@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
+    <script src="opensheetmusicdisplay.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 10px;
+            background-color: #FFFFFF;
+            overflow-x: auto;
+        }
+        #osmdCanvas {
+            width: 800px;
+            min-width: 800px;
+            position: relative; /* 중요: 자식 요소의 absolute 기준점 */
+        }
+        .highlighted-measure {
+            fill: rgba(0, 122, 255, 0.3) !important;
+        }
+        
+        /* ⭐️ 프로필 버튼 스타일 */
+        .profile-button {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #00a8cc);
+            border: 3px solid white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+            transition: transform 0.2s;
+        }
+        
+        .profile-button:hover {
+            transform: scale(1.1);
+        }
+        
+        .profile-button::before {
+            content: "";
+            font-size: 20px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="osmdCanvas"></div>
+
+    <script>
+        var osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay("osmdCanvas", {
+            autoResize: false,
+            backend: "svg",
+            drawTitle: true,
+            drawComposer: true,
+            drawSubtitle: false,
+            drawLyricist: false,
+            drawPartNames: true,
+            pageFormat: "Endless",
+            pageBackgroundColor: "#FFFFFF",
+        });
+        
+        osmd.load("BrahWiMeSample.musicxml")
+            .then(function() {
+                osmd.setOptions({ autoResize: false });
+                osmd.render();
+                console.log('✅ OSMD 렌더링 완료');
+                
+                setTimeout(function() {
+                    setupMeasureClickEvents();
+                    addProfileButtons(); // ⭐️ 프로필 버튼 추가
+                }, 500);
+            })
+            .catch(function(error) {
+                console.error('❌ OSMD 로딩 에러:', error);
+            });
+
+        // ⭐️ 특정 마디에 프로필 버튼 추가
+        function addProfileButtons() {
+            // 버튼을 추가할 마디 번호들 (1번, 5번, 9번 마디)
+            const measureNumbers = [1, 5, 9];
+            
+            let measures = document.querySelectorAll('svg rect');
+            if (measures.length === 0) {
+                measures = document.querySelectorAll('[class*="measure"]');
+            }
+            
+            console.log('🔘 프로필 버튼 추가 시작, 전체 마디:', measures.length);
+            
+            const container = document.getElementById('osmdCanvas');
+            
+            measureNumbers.forEach(measureNum => {
+                if (measureNum <= measures.length) {
+                    const measureElement = measures[measureNum - 1];
+                    
+                    try {
+                        const rect = measureElement.getBoundingClientRect();
+                        const containerRect = container.getBoundingClientRect();
+                        
+                        // 컨테이너 기준 상대 좌표
+                        const x = rect.left - containerRect.left + (rect.width / 2) - 20; // 중앙에서 -20px (버튼 반지름)
+                        const y = rect.top - containerRect.top - 50; // 마디 위 50px
+                        
+                        // HTML 버튼 생성
+                        const button = document.createElement('div');
+                        button.className = 'profile-button';
+                        button.style.left = x + 'px';
+                        button.style.top = y + 'px';
+                        button.dataset.measureNumber = measureNum;
+                        
+                        // 클릭 이벤트
+                        button.addEventListener('click', function() {
+                            console.log('👤 프로필 버튼 클릭:', measureNum);
+                            
+                            // Swift로 메시지 전송
+                            if (window.webkit && window.webkit.messageHandlers.profileButtonClicked) {
+                                window.webkit.messageHandlers.profileButtonClicked.postMessage({
+                                    measureNumber: measureNum
+                                });
+                            }
+                        });
+                        
+                        container.appendChild(button);
+                        console.log('✅ 프로필 버튼 추가:', measureNum + '번 마디, 위치:', x, y);
+                        
+                    } catch (e) {
+                        console.error('버튼 추가 에러:', e);
+                    }
+                }
+            });
+        }
+
+        function setupMeasureClickEvents() {
+            console.log('🔍 마디 클릭 이벤트 설정 시작');
+            
+            let measures = [];
+            
+            measures = document.querySelectorAll('.vexflow-measure');
+            console.log('방법1 (vexflow-measure):', measures.length);
+            
+            if (measures.length === 0) {
+                measures = document.querySelectorAll('[class*="measure"]');
+                console.log('방법2 ([class*="measure"]):', measures.length);
+            }
+            
+            if (measures.length === 0) {
+                measures = document.querySelectorAll('svg g[class*="StaffEntry"]');
+                console.log('방법3 (SVG g StaffEntry):', measures.length);
+            }
+            
+            if (measures.length === 0) {
+                measures = document.querySelectorAll('svg rect');
+                console.log('방법4 (모든 rect):', measures.length);
+            }
+            
+            console.log('✅ 최종 찾은 마디 개수:', measures.length);
+            
+            if (measures.length === 0) {
+                console.warn('⚠️ 마디를 찾을 수 없습니다.');
+                return;
+            }
+            
+            measures.forEach((measureElement, index) => {
+                measureElement.style.cursor = 'pointer';
+                
+                measureElement.addEventListener('click', function(e) {
+                    console.log('🎵 마디 클릭됨:', index + 1);
+                    
+                    document.querySelectorAll('.highlight-rect').forEach(r => r.remove());
+                    
+                    measures.forEach(m => {
+                        m.style.fill = '';
+                        m.style.opacity = '';
+                        m.classList.remove('highlighted-measure');
+                    });
+                    
+                    measureElement.style.fill = 'rgba(0, 122, 255, 0.3)';
+                    measureElement.classList.add('highlighted-measure');
+                    
+                    if (measureElement.tagName.toLowerCase() === 'g') {
+                        try {
+                            const bbox = measureElement.getBBox();
+                            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                            rect.setAttribute('x', bbox.x);
+                            rect.setAttribute('y', bbox.y);
+                            rect.setAttribute('width', bbox.width);
+                            rect.setAttribute('height', bbox.height);
+                            rect.setAttribute('fill', 'rgba(0, 122, 255, 0.3)');
+                            rect.setAttribute('class', 'highlight-rect');
+                            rect.style.pointerEvents = 'none';
+                            measureElement.insertBefore(rect, measureElement.firstChild);
+                        } catch (e) {
+                            console.log('bbox 에러:', e);
+                        }
+                    }
+                    
+                    if (window.webkit && window.webkit.messageHandlers.measureClicked) {
+                        window.webkit.messageHandlers.measureClicked.postMessage({
+                            measureNumber: index + 1
+                        });
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>
