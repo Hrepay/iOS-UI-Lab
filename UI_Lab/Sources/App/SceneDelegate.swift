@@ -21,12 +21,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let window = UIWindow(windowScene: windowScene)
 
         // UIKit 기반 루트 뷰 설정
-//        let rootViewController = ViewController()
-//        window.rootViewController = rootViewController
+        let rootViewController = TableViewController()
+        window.rootViewController = rootViewController
 
         // SwiftUI 기반 루트 뷰 설정
-        let rootView = SheetMusicView()
-        window.rootViewController = UIHostingController(rootView: rootView)
+//        let rootView = SheetMusicView()
+//        window.rootViewController = UIHostingController(rootView: rootView)
 
         self.window = window
         window.makeKeyAndVisible()
