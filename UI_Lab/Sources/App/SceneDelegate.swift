@@ -25,7 +25,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 //        window.rootViewController = rootViewController
 
         // SwiftUI 기반 루트 뷰 설정
-        let rootView = MainView()
+        let rootView = ContentView()
         window.rootViewController = UIHostingController(rootView: rootView)
 
         self.window = window

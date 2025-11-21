@@ -3,7 +3,8 @@ import ProjectDescription
 let project = Project(
     name: "UI_Lab",
     packages: [
-        .package(url: "https://github.com/SnapKit/SnapKit.git", from: "5.6.0")
+        .package(url: "https://github.com/SnapKit/SnapKit.git", from: "5.6.0"),
+        .package(url: "https://github.com/guoyingtao/Mantis.git", .upToNextMajor(from: "2.23.0"))
     ],
     targets: [
         .target(
@@ -34,7 +35,8 @@ let project = Project(
             sources: ["UI_Lab/Sources/**"],
             resources: ["UI_Lab/Resources/**"],
             dependencies: [
-             .package(product: "SnapKit")
+                .package(product: "SnapKit"),
+                .package(product: "Mantis")
             ]
         ),
         .target(
