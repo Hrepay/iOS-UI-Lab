@@ -35,15 +35,13 @@ struct InstagramStyleCropView: View {
     
     @State private var isViewInitialized = false
     
-    // 화면 크기 저장용 (UIScreen 대체)
+    // 화면 크기 저장용
     @State private var containerSize: CGSize = .zero
 
     var body: some View {
         ZStack {
-            // 1. 배경: 검은색으로 전체 화면 채움 (상태바 포함)
             Color.black.ignoresSafeArea()
             
-            // 2. 컨텐츠: Safe Area를 준수하는 VStack
             VStack(spacing: 0) {
                 // 상단 툴바
                 HStack {
@@ -63,13 +61,12 @@ struct InstagramStyleCropView: View {
                     .foregroundColor(.yellow)
                     .fontWeight(.bold)
                 }
-                .padding(.horizontal) // 좌우 여백
-                .padding(.top, 200)
-                .frame(height: 44) // 높이 고정
-                .background(Color.black) // 배경색
+                .padding(.horizontal)
+                .frame(height: 44)
+                .background(Color.black)
                 .zIndex(1)
 
-                // 메인 작업 영역 (이미지 + 크롭박스)
+                // 메인 작업 영역
                 GeometryReader { geometry in
                     ZStack {
                         Color.black
@@ -94,8 +91,10 @@ struct InstagramStyleCropView: View {
                                                 limitBounds()
                                             }
                                         },
-                                    DragGesture()
+                                    // [핵심 수정] 드래그 제스처의 기준을 고정된 "CROP_AREA"로 설정
+                                    DragGesture(coordinateSpace: .named("CROP_AREA"))
                                         .onChanged { value in
+                                            // 좌표계가 고정되어 있으므로 튀지 않음
                                             imageOffset = CGSize(
                                                 width: lastImageOffset.width + value.translation.width,
                                                 height: lastImageOffset.height + value.translation.height
@@ -141,9 +140,9 @@ struct InstagramStyleCropView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
+                    // [중요] 여기가 기준점이 되는 좌표 공간 이름
                     .coordinateSpace(name: "CROP_AREA")
                     .onAppear {
-                        // 뷰가 나타나면 크기 측정 및 레이아웃 초기화
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             self.containerSize = geometry.size
                             initializeLayout(viewSize: geometry.size)
@@ -154,7 +153,7 @@ struct InstagramStyleCropView: View {
         }
     }
     
-    // MARK: - 로직 함수들 (UIScreen 완전 제거)
+    // MARK: - 로직 함수들
     
     private func initializeLayout(viewSize: CGSize) {
         let screenW = viewSize.width
@@ -196,6 +195,10 @@ struct InstagramStyleCropView: View {
         }
         
         self.isViewInitialized = true
+        
+        DispatchQueue.main.async {
+            self.limitBounds()
+        }
     }
     
     private func cornerHandle(for corner: Corner) -> some View {
@@ -269,26 +272,28 @@ struct InstagramStyleCropView: View {
                 resizeOffset = .zero
                 currentCropSize = maxCropSize
             }
+            withAnimation {
+                limitBounds()
+            }
             return
         }
+        
         withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
             currentCropSize = maxCropSize
             imageScale *= snapRatio
+            
             imageOffset.width = (imageOffset.width * snapRatio) - (resizeOffset.width * snapRatio)
             imageOffset.height = (imageOffset.height * snapRatio) - (resizeOffset.height * snapRatio)
+            
             resizeOffset = .zero
             limitBounds()
             lastImageScale = 1.0
-            lastImageOffset = imageOffset
+            // lastImageOffset update is handled in limitBounds
         }
     }
     
     private func limitBounds() {
-        guard isViewInitialized else { return }
-        
-        // [수정] 경고 원인이었던 UIScreen 제거. 저장된 containerSize 사용.
-        // containerSize가 0이면 아직 초기화 전이므로 return
-        if containerSize == .zero { return }
+        guard isViewInitialized, containerSize != .zero else { return }
         
         let viewW = containerSize.width
         let viewH = containerSize.height
@@ -299,25 +304,28 @@ struct InstagramStyleCropView: View {
         if fitH > viewH { fitH = viewH }
         let fitW = fitH * imageRatio
         
+        let minScaleX = currentCropSize.width / fitW
+        let minScaleY = currentCropSize.height / fitH
+        let minRequiredScale = max(minScaleX, minScaleY)
+        
+        if imageScale < minRequiredScale {
+            imageScale = minRequiredScale
+        }
+        
         let scaledW = fitW * imageScale
         let scaledH = fitH * imageScale
         
-        let maxOffX = max(0, (scaledW - maxCropSize.width) / 2)
-        let maxOffY = max(0, (scaledH - maxCropSize.height) / 2)
+        let maxOffX = max(0, (scaledW - currentCropSize.width) / 2)
+        let maxOffY = max(0, (scaledH - currentCropSize.height) / 2)
         
         imageOffset.width = min(max(imageOffset.width, -maxOffX), maxOffX)
         imageOffset.height = min(max(imageOffset.height, -maxOffY), maxOffY)
         
-        if imageScale < 1.0 {
-            imageScale = 1.0
-            imageOffset = .zero
-        }
+        lastImageOffset = imageOffset
     }
     
     private func cropImage() -> UIImage? {
-        guard isViewInitialized else { return nil }
-        // [수정] 경고 원인이었던 UIScreen 제거
-        if containerSize == .zero { return nil }
+        guard isViewInitialized, containerSize != .zero else { return nil }
         
         let viewW = containerSize.width
         let renderScale = image.size.width / viewW
@@ -335,7 +343,6 @@ struct InstagramStyleCropView: View {
     }
 }
 
-// 그리드 라인 (유지)
 struct CropBoxOverlay: View {
     let size: CGSize
     var body: some View {
