@@ -43,30 +43,6 @@ struct InstagramStyleCropView: View {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // 상단 툴바
-                HStack {
-                    Button("취소") { dismiss() }
-                        .foregroundColor(.white)
-                    Spacer()
-                    Text("3:4 비율 크롭")
-                        .foregroundColor(.white)
-                        .fontWeight(.bold)
-                    Spacer()
-                    Button("완료") {
-                        if let cropped = cropImage() {
-                            onComplete(cropped)
-                            dismiss()
-                        }
-                    }
-                    .foregroundColor(.yellow)
-                    .fontWeight(.bold)
-                }
-                .padding(.horizontal)
-                .frame(height: 44)
-                .background(Color.black)
-                .zIndex(1)
-
-                // 메인 작업 영역
                 GeometryReader { geometry in
                     ZStack {
                         Color.black
@@ -91,10 +67,8 @@ struct InstagramStyleCropView: View {
                                                 limitBounds()
                                             }
                                         },
-                                    // [핵심 수정] 드래그 제스처의 기준을 고정된 "CROP_AREA"로 설정
                                     DragGesture(coordinateSpace: .named("CROP_AREA"))
                                         .onChanged { value in
-                                            // 좌표계가 고정되어 있으므로 튀지 않음
                                             imageOffset = CGSize(
                                                 width: lastImageOffset.width + value.translation.width,
                                                 height: lastImageOffset.height + value.translation.height
@@ -140,7 +114,6 @@ struct InstagramStyleCropView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
-                    // [중요] 여기가 기준점이 되는 좌표 공간 이름
                     .coordinateSpace(name: "CROP_AREA")
                     .onAppear {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -149,6 +122,31 @@ struct InstagramStyleCropView: View {
                         }
                     }
                 }
+                
+                // [변경 2] 상단에 있던 툴바를 하단으로 이동
+                HStack {
+                    Button("취소") { dismiss() }
+                        .foregroundColor(.white)
+                    Spacer()
+                    Text("3:4 비율 크롭")
+                        .foregroundColor(.white)
+                        .fontWeight(.bold)
+                    Spacer()
+                    Button("완료") {
+                        if let cropped = cropImage() {
+                            onComplete(cropped)
+                            dismiss()
+                        }
+                    }
+                    .foregroundColor(.yellow)
+                    .fontWeight(.bold)
+                }
+                .padding(.horizontal)
+                .frame(height: 50)
+                .background(Color.black)
+                .zIndex(1)
+                // 하단 Safe Area를 고려하여 패딩 추가 (선택 사항)
+                .padding(.bottom, 30)
             }
         }
     }
