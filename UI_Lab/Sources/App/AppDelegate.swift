@@ -7,6 +7,7 @@
 
 import UIKit
 import SwiftUI
+import FirebaseCore
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -16,14 +17,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        let window = UIWindow(frame: UIScreen.main.bounds)
         
-        // SwiftUI 뷰 설정
+        FirebaseApp.configure()
+        
+        let window = UIWindow(frame: UIScreen.main.bounds)
         let rootView = ContentView()
         window.rootViewController = UIHostingController(rootView: rootView)
-
         self.window = window
         window.makeKeyAndVisible()
+        
         return true
     }
 }
