@@ -44,6 +44,7 @@ DerivedData/
 *.moved-aside
 *.pbxuser
 !default.pbxuser
+
 *.mode1v3
 !default.mode1v3
 *.mode2v3
@@ -67,4 +68,7 @@ graph.dot
 Derived/
 
 ### Tuist managed dependencies ###
-Tuist/.build
+Tuist/.buildGoogleService-Info.plist
+GoogleService-Info.plist
+
+
