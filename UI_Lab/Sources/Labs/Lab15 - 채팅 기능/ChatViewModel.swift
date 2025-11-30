@@ -7,55 +7,76 @@
 
 import Foundation
 import UIKit
-import FirebaseFirestore
+import Combine
 
 class ChatViewModel: ObservableObject {
-    // @Published: 이 배열이 바뀌면 화면도 자동으로 바뀝니다.
     @Published var messages: [Message] = []
     
-    // Firestore 데이터베이스 참조
-    private var db = Firestore.firestore()
+    private var webSocketTask: URLSessionWebSocketTask?
+    
+    private let serverURL = "ws:"
     
     init() {
-        // 뷰모델이 생성되자마자 메시지를 듣기 시작합니다.
-        fetchMessages()
+        connect()
     }
     
-    // 실시간 데이터 듣기
-    func fetchMessages() {
-        // 'messages'라는 컬렉션(폴더)을 구독합니다.
-        db.collection("messages")
-            .order(by: "timestamp", descending: false) // 과거 -> 최신 순 정렬
-            .addSnapshotListener { snapshot, error in
-                guard let documents = snapshot?.documents else {
-                    print("문서가 없습니다: \(String(describing: error))")
-                    return
-                }
-                
-                // 가져온 문서들을 Message 구조체로 변환해서 배열에 넣습니다.
-                self.messages = documents.compactMap { doc -> Message? in
-                    try? doc.data(as: Message.self)
-                }
-            }
+    // 1. 서버 연결
+    func connect() {
+        guard let url = URL(string: serverURL) else { return }
+        let session = URLSession(configuration: .default)
+        webSocketTask = session.webSocketTask(with: url)
+        webSocketTask?.resume()
+        
+        receiveMessage()
     }
     
-    // 메시지 전송 기능
+    // 2. 메시지 보내기
     func sendMessage(text: String) {
-        // 빈 메시지 방지
         guard !text.isEmpty else { return }
         
-        // 보낼 데이터 뭉치 만들기
-        let newMessage = Message(
-            text: text,
-            senderId: UIDevice.current.identifierForVendor?.uuidString ?? "Unknown", // 내 기기 ID
-            timestamp: Date()
-        )
+        // 보낼 데이터를 JSON으로 포장
+        let myId = UIDevice.current.identifierForVendor?.uuidString ?? "Unknown"
+        let newMessage = Message(text: text, senderId: myId)
         
-        // Firestore에 저장 (오류 처리는 간단히 print로)
-        do {
-            try db.collection("messages").addDocument(from: newMessage)
-        } catch {
-            print("전송 실패: \(error.localizedDescription)")
+        guard let jsonData = try? JSONEncoder().encode(newMessage),
+              let jsonString = String(data: jsonData, encoding: .utf8) else { return }
+        
+        let messageToSend = URLSessionWebSocketTask.Message.string(jsonString)
+        
+        webSocketTask?.send(messageToSend) { error in
+            if let error = error {
+                print("전송 실패: \(error)")
+            }
         }
+    }
+    
+    // 3. 메시지 받기 (계속 듣기)
+    private func receiveMessage() {
+        webSocketTask?.receive { [weak self] result in
+            switch result {
+            case .success(let message):
+                // 받은 메시지(JSON String)를 Message 객체로 변환
+                if case .string(let text) = message,
+                   let data = text.data(using: .utf8),
+                   let receivedMessage = try? JSONDecoder().decode(Message.self, from: data) {
+                    
+                    // 화면 갱신 (메인 스레드)
+                    DispatchQueue.main.async {
+                        self?.messages.append(receivedMessage)
+                    }
+                }
+                
+                // 다음 메시지 대기 (재귀 호출)
+                self?.receiveMessage()
+                
+            case .failure(let error):
+                print("연결 끊김: \(error)")
+            }
+        }
+    }
+    
+    // 연결 종료 (필요시 호출)
+    func disconnect() {
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
     }
 }
